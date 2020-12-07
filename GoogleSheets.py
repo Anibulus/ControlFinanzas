@@ -2,25 +2,54 @@ import os
 from socket import gethostbyname, create_connection, error
 import pygame
 import time
+from datetime import date
 import gspread #Libreria para sheets de google
 
-pygame.init()
 #Funciones basicas para cualquier sheet
 class GoogleSheet():
 #Características
-    KEY=""
+    KEY=""#url
     hojas="" #Conjunto de hojas
     hojaActual=""#Hoja seleccionada
+    acciones=()
     sonido=""
+    DIAS_CORTE=(14,29)#Das en los que hago corte
+    #Objetos de las hojas
+    finanzas=""
+    concentrado=""
+    activos=""
+    obligaciones=""
+    luz=""
 
-    #Sobrecarga con parametro @KEY
-    def __init__(self, key=""):
+    def __init__(self, key="", sonido=""):
+        pygame.init()
         self.KEY=key
-
+        self.sonido=sonido
+        self.concentrado=Concentrado(sonido)
+        self.finanzas=Flujo(sonido)#TODO Renombrara a flujo
+        self.luz=CFE(sonido)
+        #TODO Pendientes las otras dos Hojas
+        self.activos=""
+        self.obligaciones=""        
 
     #Setters y getters
     def getKey(self):
         return self.KEY
+    
+    def setHojas(self, hojas):
+        self.hojas=hojas
+
+    def getHojas(self):
+        return self.hojas
+
+    def setHojaActual(self,hojas, eleccion):
+        if(self.conexion()):
+            self.hojaActual=hojas.get_worksheet(eleccion-1)            
+        else:
+            self.hojaActual=None
+
+    def getHojaActual(self):
+        return self.hojaActual
 
 #Métodos de gran importancia en los procesos
 
@@ -40,16 +69,13 @@ class GoogleSheet():
         gc=gspread.service_account(filename=credentials)
         #Nota: Tambien se debe compartir el sheet con el correo que esta en credentials
         if(self.conexion()):
-            sh= gc.open_by_key(self.getKey())#Parte de la url
-            lista=sh.worksheets()
-            #Obtiene el titulo de cada elemento
-            for item in range(len(lista)):
-                lista[item]=lista[item].title
+            sh=gc.open_by_key(self.getKey())#Parte de la url
+            lista=sh.worksheets()            
             self.haciendoALaMamada()
-            self.hojas=lista
-            self.mostrarOpciones(lista)
+            self.mostrarOpciones(self.ConvertirSheetsALista(lista))
+            self.setHojas(sh)#Setea las hojas utilizables                    
         else:
-            sh=False
+            sh=None
             self.sans("No hay conexion en este momento....")
         return sh
 
@@ -85,6 +111,23 @@ class GoogleSheet():
                 self.clear()
         return respuesta
 
+    #
+    def menuPrincipal(self,eleccion):
+        while eleccion!=0:            
+                self.setHojaActual(eleccion)
+                if eleccion==1:#Flujo
+                    pass
+                elif eleccion==2:#Concentrado
+                    pass
+                elif eleccion==3:
+                    pass
+                elif eleccion==4:
+                    pass
+                elif eleccion==5:
+                    pass
+                elif eleccion==6:
+                    pass
+
 
 #Métodos que sirven con fines estéticos
 
@@ -92,13 +135,29 @@ class GoogleSheet():
     def clear(self): 
         os.system('cls') #on Windows System
 
+    def ConvertirSheetsALista(self,lista):
+        #Obtiene el titulo de cada elemento
+        for item in range(len(lista)):
+            lista[item]=lista[item].title
+        return lista
+
     #Muestra enumeradamente las opciones
     def mostrarOpciones(self, lista):
         print("0-. Salir")
-        for item in range(len(lista)):
-            print(str(item+1)+"-. "+lista[item]) 
+        contador=0
+        for item in lista:
+            print(str(contador+1)+"-. "+item)
+            contador+=1
 
-    def ConvertirDineroADecimal(self, lista):
+    def previoAccion(self):
+        #sh.get_worksheet(0).title
+        return self.decisionNumerica("Se encuentra en "+str(self.getHojaActual().title)+" \n¿Qué accion deseas realizar? ")
+
+    def mostrarAcciones(self):
+        self.mostrarOpciones(self.acciones)
+        return self.previoAccion()
+
+    def convertirDineroADecimal(self, lista):
         contador=0
         for item in lista:
             #Quita el signo de peso y da formato al decimal
@@ -159,6 +218,14 @@ class GoogleSheet():
 #res=worksheet.get_all_values()
 #print(res)
 
+
+###print(sh.get_worksheet(1))
+   #         print(sh.get_worksheet(1).title)
+    #        worksheet=sh.get_worksheet(1)
+     #       print(worksheet.acell("a2"))
+      #      print(worksheet.cell(3,4).value)
+       #     print(sh.get_worksheet(1).cell(3,4).value)    
+
 #CRUD
 #print(worksheet.row_values(1))
 #print(worksheet.col_values(1))
@@ -170,3 +237,148 @@ class GoogleSheet():
 #worksheet.update_cell(6,2,"Me estoy modificando jeje")
 #worksheet.delete_row(1)
 #wks.format('A1:B1', {'textFormat': {'bold': True}})
+
+
+
+
+
+
+
+
+
+#Hace herencia de sheetsGoogle
+class Flujo(GoogleSheet):
+    #Características
+    #TODO Lo registrado tiene que quedar tambien en el sheet de concentrado
+    acciones=("Registrar")
+    
+    #Constructor
+    def __init__(self, sonido):  
+        self.sonido=sonido
+    #TODO reducir en concentrado el registro de un gusto y/o comida
+#Fin de clase flujo
+
+
+
+
+
+
+
+
+
+
+#Hace herencia de sheetsGoogle
+class Concentrado(GoogleSheet):
+    #Características
+    #TODO Lo registrado tiene que quedar tambien en el sheet de concentrado
+    acciones=("Concentrado","Corte", "Aportación", )
+    CONCEPTOS=("Saldo de tarjeta de Nómina", "Ahorro del mes","Alcancía", "Cartera", "Saldo de tarjeta de Crédito")
+    DIAS_CORTE=(14,29)#Das en los que hago corte
+
+    #Constructor
+    def __init__(self,sonido):
+        self.sonido=sonido
+    #métodos
+    #TODO ver si hacerlo para fechas especificas o hacerlo por si solo
+    def corteAlimento(self):#Semantica python, donde se llama a si mismo  
+        #Siempre eprueba conexion qantes de continuar
+        if(self.conexion()):
+            cell = self.hojaActual.find("Concentrado")
+            print("Found something at R%sC%s" % (cell.row, cell.col))
+            #Obtiene los elementos individuales registrados      
+            datos=self.hojaActual.get("F3:F100")#Celdas donde se encuentran los datos
+            total=.0
+            for item in datos:
+                #Quita el signo de peso y da formato al decimal
+                tmp=str(item[0]).replace("$","")
+                tmp=tmp.split(",")
+                total+=float(tmp[0].replace(".","")+"."+tmp[1])            
+            self.sans("El total ha sido de: "+str(total))       
+
+            #Ubica la quincena del momento y coloca el valor correspoondiente
+            #Es más tres porque ocupara una posición más abajo ademas de los 2 espacios que no se utilizan
+            datos=self.hojaActual.get("E3:E100")
+            self.hojaActual.update_cell(len(datos)+3,5, str(int(total)) + " Quincena "+str(len(datos)+1))
+
+            #Borra el contenido individual
+            for i in range(3,31):
+                self.hojaActual.update_cell(i,6,"")
+            #Ahora lo coloca en la seccion de totales
+        else:
+            total=0
+        return total
+
+    def corteAlimento(self):#Semantica python, donde se llama a si mismo  
+        #Siempre eprueba conexion qantes de continuar
+        if(self.conexion()):
+            #Obtiene los elementos individuales registrados      
+            datos=self.hojaActual.get("F3:F100")#Celdas donde se encuentran los datos
+            if(len(datos)>0):#Hay por lo menos un registro
+                total=.0
+                for item in self.convertirDineroADecimal(datos):
+                    total+=float(item)
+                self.sans("El total ha sido de: "+str(total))
+
+                #Ubica la quincena del momento y coloca el valor correspoondiente
+                #Es más tres porque ocupara una posición más abajo ademas de los 2 espacios que no se utilizan
+                datos=self.hojaActual.get("E3:E100")
+                self.hojaActual.update_cell(len(datos)+3,5, str(int(total)) + " Quincena "+str(len(datos)+1))
+                #Borra el contenido individual
+                for i in range(3,31):
+                    self.hojaActual.update_cell(i,6,"")
+                #Ahora lo coloca en la seccion de totales
+            else:
+                self.clear()
+                self.sans("Para realizar un corte, requiere haber datos.")
+                time.sleep(1)
+                self.clear()
+
+    def establecerConcentrado(self):
+        #TODO decir cuando fue la ultima modificacion
+        self.sans("Te mostraré la información que debes llenar, atento. \nPara omitir, pulsa \"Enter\"")
+        time.sleep(2)
+        self.clear()
+        total=0.
+        cont=0#contador
+        for i in self.CONCEPTOS:            
+            self.sans("En "+i+" registrado es: ")
+            #Oneline if
+            #expr1 if condition1 else expr2 if condition2 else exp
+            coordenadas="A5" if cont==0 else "A6" if cont==1 else "B3" if cont==2 else "B4" if cont==3 else "B7"
+            #Es usada de auxiliar para sumar todas las cantidades
+            cantidades=self.getHojaActual().get(coordenadas)[0]
+            self.sans(str(cantidades[0])+"\n")
+            resp=self.ingresarCifra()
+            if resp["isNumber"]:
+                #TODO comprobar conecion antes de continuar
+                cantidades=resp["respuesta"]
+                #Valida si es A o B y conserva el numero de la derecha                
+                self.hojaActual.update_cell(int(coordenadas[1:2]),1 if coordenadas[0:1]=="A" else 2, resp["respuesta"])#substring (string[start:end:step])
+                self.hojaActual.update_cell(10,2, date.today().strftime("%d/%m/%Y")) #Fecha
+                total+=float(cantidades)
+            else:
+                total+=float(self.convertirDineroADecimal(cantidades)[0])
+            self.clear()
+            cont+=1
+        self.sans("El ajuste total quedaría de: $"+str(round(total,2)))
+        time.sleep(5)
+        self.clear()
+        #TODO preguntar si lo quiere una vez mas o no
+
+    #TODO reducir en concentrado el registro de un gusto y/o comida
+#Fin de clase finanzas
+
+
+
+class CFE(GoogleSheet):
+    #Características
+    KEY=""
+    noHojas=1
+
+    #Constructor
+    def __init__(self, sonido):
+        self.sonido=sonido
+
+
+    #métodos
+#Fin de clase finanzas

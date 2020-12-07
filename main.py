@@ -1,8 +1,8 @@
 import json
 import os
+import time
+import gspread
 from GoogleSheets import GoogleSheet
-from Finanzas import Finanzas
-from Luz import CFE
 
 #Carga de datos previo a iniciar el programa
 
@@ -14,61 +14,47 @@ CLAVES = json.loads(data)
 CREDENCIALES=CLAVES["Credenciales"]
 
 #Inicializacion de objetps
-control=GoogleSheet()
-control.setSonido(str(CLAVES["Sound"]))
-fin=Finanzas(CLAVES["Finanzas"]["key"])
-fin.setSonido(str(CLAVES["Sound"]))
-luz=CFE(CLAVES["CFE"]["key"])
-luz.setSonido(str(CLAVES["Sound"]))
+control=GoogleSheet(CLAVES["Finanzas"]["key"],CLAVES["Sound"])
 control.clear()
 
 #Muestra los sheets disponibles actualmente
 #TODO hacer funcion de google sheets
-sheets=("Finanzas Personales","CFE-Seguimiento")
-print("Sheets disponibles:")
-control.mostrarOpciones(sheets)
-
-eleccion=control.decisionNumerica("Selecciona el sheet deseas modificar: ")
-if eleccion == 0:
-    control.sans("Saliendo...")
-elif eleccion == 1:#Finanzas
-    #Obtiene el acceso y contiene el objeto de las hojas
-    fin.hojas=fin.acceso(CREDENCIALES)
-    if fin.hojas!=False:
+control.acceso(CREDENCIALES)
+#Internamente llena una variable
+if control.getHojas()!=None: #TODO ver s se puede colocar getHojas por si solo
+    eleccion=control.decisionNumerica("Elige una opcion de las sheets que encontre ")
+    if eleccion == 0 or eleccion<0:
+        control.sans("Saliendo...")
         #TODO hacer funcion buscar sheets y luego buscar acciones
         #Selecciona una hoja del monton
-        eleccion=control.decisionNumerica("Seleccione la hoja que desea: ")#Para seleccionar la opcion deseada
-        if eleccion==0:
-            pass #salir
-        elif eleccion<0:
-            pass #Se sale
-        else:
-            #Define la hoja sobre la que se va a trabajar
-            fin.hojaActual=fin.hojas.get_worksheet(eleccion-1)            
-            #Crea un ciclo en el que se pueden ejecutar las acciones en una hoja definida
-            opciones=True
-            while opciones:
-                #Muestra las acciones que se pueden ejecutar en la hoja que se seleccionó
-                for item in fin.acciones.keys():
-                    if(item==fin.hojaActual.title): #Decir que opciones tiene
-                        control.mostrarOpciones(fin.acciones[item])
-                        break
-                eleccion=control.decisionNumerica("Se encuentra en "+fin.hojaActual.title+" \n¿Qué accion deseas realizar?")
-                #TODO hacer seleccion dinamica
-                if eleccion==1:
-                    fin.establecerConcentrado()
-                elif eleccion==2:
-                    fin.corteAlimento()
-
-            
-
-elif eleccion == 2:#CFE
-    #TODO poner un try catch que ntambien diga si no hay acceso
-    worksheet=CFE.acceso("")
-    print("¿A que seccion desea entrar?")
-    encabezados=control.removerEspaciosVacios(worksheet.row_values(1))
-    control.mostrarOpciones(encabezados)
-    eleccion=control.decisionNumerica()
-else:
-    GoogleSheet.sans("Ya me voy a la verga ....")
-    eleccion=0
+    else :#Menu principal
+        while eleccion!=0:            
+            if eleccion==1:#Flujo
+                print("Aun no entro en funcionamiento")
+            elif eleccion==2:#Concentrado
+                control.concentrado.setHojaActual(control.getHojas(),eleccion)
+                if(control.concentrado.getHojaActual()!=None):#Si no se perdio la conexion
+                    eleccion=control.concentrado.mostrarAcciones()
+                    if eleccion==1:
+                        control.concentrado.establecerConcentrado()
+                    elif eleccion==2:
+                        control.concentrado.corteAlimento()
+                else:#Se perdio la conexion
+                    control.clear()
+                    control.sans("Se ha perdido la conexion")
+                    #TODO quieres volver a intentarlo?
+            elif eleccion==3:
+                pass
+            elif eleccion==4:
+                pass
+            elif eleccion==5:
+                pass
+            elif eleccion==6:
+                pass
+            control.mostrarOpciones(control.ConvertirSheetsALista(control.getHojas().worksheets()))
+            eleccion=control.decisionNumerica("Elige una opcion de las sheets que encontre ")
+        control.sans("Nos vemos, pero recuerda... \nTe estaré observando")
+else: #Validacion de conexion a internet
+    time.sleep(2)
+    control.clear()
+    control.sans("Pos ahí nos vidrios krnal, no encontre nada")
